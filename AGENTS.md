@@ -9,13 +9,11 @@ This document contains guidelines, domain knowledge, architectural standards, an
 ### Main Loop Lifecycle (`main.js`)
 The main loop runs strictly in the following sequence every tick:
 1. **Memory Cleanup**: Purges dead creeps from `Memory.creeps` to avoid memory leaks.
-2. **Creep Recycling & Suicide Execution**: Directs retiring units (`manager.suicide.js`) to deposit carried resources and recycle at the spawn.
-3. **Room & Defense Management**:
-   - **Tower Management** (`manager.towers.js`): Hostile attack > Creep heal > Structure repair.
-   - **RCL-Adaptive Spawner Management**: Dynamically routes spawners based on Controller Level (`manager.spawner.js` for RCL 1, `manager.spawnerRCL2.js` for RCL 2+).
-   - **Room Statistics & Dashboards** (`manager.stats.js`): Tracks throughput, gathering/upgrade rates, routes, and CPU.
-4. **Creep Role Execution**: Executes role behavior loops (`role.harvester`, `role.carrier`, `role.transporter`, `role.upgrader`, `role.builder`, `role.defender`).
-5. **CPU Bucket Maintenance**: Checks `Game.cpu.generatePixel` and generates pixels when bucket reaches 10,000.
+2. **Room Statistics & Dashboards** (`manager.stats.js`): Accumulates gathering and upgrade metrics, tracking throughput, routes, storage, and CPU.
+3. **Tower Defense & Repairs** (`manager.tower.js`): Executes automated combat targeting, triage healing of damaged creeps, emergency structural repairs, and threshold-gated maintenance.
+4. **Spawner Management** (`manager.spawner.js`): Evaluates threat levels and creep quotas, executing prioritized spawn queues (emergency recovery > wartime defense > static harvesters > mules > standing army > updaters > builders).
+5. **Creep Role Execution**: Dispatches role execution loops (`role.harvester`, `role.updater`, `role.builder`, `role.mule`, `role.defender`).
+6. **CPU Bucket Maintenance**: Checks `Game.cpu.generatePixel` and generates pixels when bucket reaches 10,000.
 
 ---
 
@@ -23,26 +21,21 @@ The main loop runs strictly in the following sequence every tick:
 
 ### Core & Entry Point
 - **`main.js`**: Primary entry point and tick orchestrator.
+- **`helper.source.js`**: Global helper functions extending environment capabilities (e.g., `global.findNextContainerWithEnergy`).
 
 ### Colony Managers (`manager.*.js`)
-- **`manager.spawner.js`**: RCL 1 spawner manager. Handles basic hybrid creeps (`[WORK, CARRY, MOVE]`), version 1 tracking, and emergency harvester recovery when energy is depleted.
-- **`manager.spawnerRCL2.js`**: RCL 2+ spawner manager. Employs dynamic body scaling per role, version 2 tagging, carrier and transporter quota management, and automated retirement of obsolete v1 creeps upon spawning v2 replacements.
-- **`manager.transporter.js`**: Point-to-point and chain logistics manager. Configures routes between containers/spawns (`from` -> `to`), assigns fast transporters, and checks route quotas.
-- **`manager.towers.js`**: Automated tower defense system. Prioritizes attacking hostile creeps, healing friendly creeps, and repairing critical ramparts/containers when energy > 50%.
-- **`manager.idle.js`**: Parking and congestion control. Dispatches idle creeps to designated room parking flags (`roomFlags` dictionary or auto-detected flags like `Idle_<RoomName>`, `Parking`, `Idle`) to keep spawns and roads clear.
-- **`manager.suicide.js`**: Graceful unit recycling. Offloads carried energy to base structures, navigates to the nearest spawn to recycle (`spawn.recycleCreep`), or suicides cleanly without wasting resources.
-- **`manager.stats.js`**: Real-time console reporting system. Gathers tick-by-tick gathering and upgrade rates, trend indicators (📈 UP / 📉 DOWN), storage breakdowns, spawner status, route fulfillment, defense alerts, and CPU bucket stats every 100 ticks.
+- **`manager.spawner.js`**: Autonomous colony spawner. Evaluates hostile presence to switch between peacetime quotas and wartime alerts, managing emergency recovery, mule routes, military forces, and civilian workers.
+- **`manager.idle.js`**: Parking and congestion control. Dispatches idle creeps to designated room parking flags (`roomFlags` dictionary or auto-detected flags like `Idle_<RoomName>`, `Parking`, `Idle`) and steers creeps away from spawns.
+- **`manager.stats.js`**: Real-time console reporting system. Gathers tick-by-tick gathering and upgrade rates, trend indicators (📈 UP / 📉 DOWN), storage breakdowns, spawner status, mule route fulfillment, defense alerts, and CPU bucket stats every 100 ticks.
+- **`manager.tower.js`**: Automated defense and maintenance system. Prioritizes hostiles (healers > attackers > closest), triage heals friendly creeps, performs emergency repairs on critical structures, and maintains infrastructure when energy exceeds configured thresholds.
 
 ### Creep Roles (`role.*.js`)
-- **`role.harvester.js`**: Energy extraction role. Prioritizes depositing energy directly into adjacent source containers for static mining setups, falling back to filling spawns/extensions if no containers exist.
-- **`role.carrier.js`**: General logistics hauler. Collects dropped resources, tombstones, ruins, and container energy to supply spawns, extensions, towers, and storage.
-- **`role.transporter.js`**: High-speed dedicated route transporter (1:1 `CARRY:MOVE` ratio). Executes specific container-to-container or container-to-spawn routes defined in `manager.transporter.js` with automatic overflow balancing.
-- **`role.upgrader.js`**: Room controller upgrader. Withdraws energy from controller containers or nearby storage to continuously upgrade the Room Controller.
-- **`role.builder.js`**: Construction and maintenance specialist. Prioritizes construction sites (`Towers` > `Extensions` > `Containers` > `Walls/Ramparts` > `Roads`), automatically loads room blueprints (`room.<RoomName>.js`), and performs urgent repairs.
-- **`role.defender.js`**: Room security and military defender. Gathers at the `defend` flag during peacetime and engages hostiles with high priority (targeting healers and attackers first).
-
-### Room Blueprints (`room.*.js`)
-- **`room.W2N2.js`**: Room layout blueprint for `W2N2`. Defines planned construction coordinates (`constructions` array with `type`, `x`, `y`, `minRcl`), dynamically loaded and queued by builder creeps.
+- **`role.harvester.js`**: Home room energy extraction role. Supports local harvesting routes via `HARVESTERS` configuration (`route`, `room`, `homeRoom`, `source`, `target`, `count`). Prioritizes depositing energy directly into the configured dropoff container / adjacent source containers (static mining setup), falling back to filling spawns, extensions, towers, storage, or controller upgrading.
+- **`role.remoteharvester.js`**: Long-distance remote room energy extractor and hauler. Uses `REMOTE_HARVESTERS` route configuration (`route`, `room`, `homeRoom`, `source`, `count`) with balanced 1:1 `MOVE` parts (`[WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]`) for efficient cross-border navigation and hauling back to `homeRoom`.
+- **`role.updater.js`**: Room controller upgrader. Gathers energy from containers (or active sources) and upgrades the Room Controller.
+- **`role.builder.js`**: Construction & maintenance specialist. Withdraws energy from containers to construct active building sites, and when idle, plans routes, places road construction sites, and repairs decaying roads (< 70% hits).
+- **`role.mule.js`**: Dedicated point-to-point route logistics hauler. Uses `MULES` route configuration (`route`, `room`, `source`, `target`, `count`) with object IDs. Delivers remaining cargo before parking on empty sources.
+- **`role.defender.js`**: Multi-archetype military combat and field medic role. Handles melee combat (`attack`), ranged combat with kiting (`rangedAttack`/`rangedMassAttack`), and combat medic healing (`heal`/`rangedHeal` triage). Stations at `defend` flag during peacetime.
 
 ---
 
@@ -56,22 +49,25 @@ The main loop runs strictly in the following sequence every tick:
       }
   }
   ```
-- **Object References**: Never store live game objects (`Creep`, `Structure`, `Source`) in `Memory`. Always store ID strings (`creep.memory.targetId = target.id`) or coordinate objects (`{x, y}`).
+- **Object References**: Never store live game objects (`Creep`, `Structure`, `Source`) in `Memory`. Always store ID strings (`creep.memory.source = source.id`) or route keys (`creep.memory.route = 'updaterRoute'`).
 - **Pathfinding & Distance Optimization**:
   - Prefer `pos.findClosestByRange()` over `pos.findClosestByPath()` for general target selection to avoid heavy pathfinder computations.
-  - Set `reusePath: 15` or higher on `creep.moveTo()`.
-- **Dynamic Module Caching**: Cache dynamically required modules (e.g., `role.builder.js` blueprint caching `roomBlueprints[roomName]`) to eliminate repeated `require()` overhead.
+  - Set `reusePath: 15` on `creep.moveTo()`.
+- **Dynamic Configuration Lookups**: Keep route definitions in role configuration arrays (e.g. `role.mule.js` and `role.builder.js`) and look them up dynamically to allow instant route tuning without rebuilding creep memory.
 - **CPU Bucket**: Maintain CPU bucket awareness (`Game.cpu.bucket`). Trigger `Game.cpu.generatePixel()` when reaching 10,000 CPU bucket capacity.
 
 ---
 
 ## 4. Creep Body Ratios & Role Archetypes
 
-- **Static Miner / Harvester (v2)**: Heavy `WORK` (e.g. 5 `WORK`, 1 `CARRY`, 1-2 `MOVE`). Sits on source containers and harvests 10 e/tick.
-- **Dedicated Hauler / Carrier (v2)**: 2 `CARRY` : 1 `MOVE` (roads) or 1 `CARRY` : 1 `MOVE` (plains).
-- **Fast Route Transporter**: 1 `CARRY` : 1 `MOVE` for 100% full speed on plains and roads.
-- **Upgrader / Builder (v2)**: Balanced throughput (e.g., 2-4 `WORK`, 1-2 `CARRY`, 1-2 `MOVE`).
-- **Defender / Warrior**: Frontline armor with `TOUGH` leading body, heavy `ATTACK`, and 1:1 `MOVE` ratio for unhindered combat agility.
+- **Emergency Harvester**: `[WORK, CARRY, MOVE]` (200 energy) - Jumpstarts colony when harvesters <= 1.
+- **Static Miner / Harvester**: `[WORK, WORK, WORK, WORK, CARRY, MOVE]` (500 energy) - Mines 8 energy/tick directly into adjacent containers with low transit overhead.
+- **Remote Harvester**: `[WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]` (500 energy) - Balanced 1:1 `MOVE` ratio for fast cross-border transit and hauling.
+- **Dedicated Route Mule**: `[CARRY, CARRY, MOVE, MOVE]` (200 energy) - 1:1 `CARRY:MOVE` ratio for 100% full speed on plains and roads.
+- **Defender Melee**: `[TOUGH, MOVE, ATTACK, ATTACK, MOVE]` (280 energy) - Frontline armored strike unit.
+- **Defender Ranged**: `[RANGED_ATTACK, MOVE, MOVE]` (260 energy) - Mobile skirmisher and kiting unit.
+- **Defender Healer**: `[HEAL, MOVE]` (300 energy) - Combat medic for active unit triage and recovery.
+- **Updater / Builder**: `[WORK, CARRY, MOVE]` (200 energy) - Standard civilian infrastructure workers.
 
 ---
 
@@ -80,15 +76,14 @@ The main loop runs strictly in the following sequence every tick:
 ```
 [Energy Source]
        │
-       ▼ (Harvester mines 10 e/tick)
+       ▼ (Harvester mines into container)
 [Source Container]
        │
-       ├──► [Transporter: Route 1] ──► [Spawns & Extensions] ──► Spawns v2 Units
-       ├──► [Transporter: Route 2] ──► [Controller Container] ──► Upgraders
-       └──► [Carrier / Hauler]     ──► [Towers & Storage]     ──► Defense & Stockpile
+       ├──► [Mule: Harvester Route] ──► [Central / Base Container] ──► [Spawns & Extensions]
+       ├──► [Mule: Updater Route]   ──► [Controller Container]    ──► Upgraders (RCL Progress)
+       └──► [Builder (Idle)]        ──► Plans & constructs roads between source & target IDs
 ```
 
-- **RCL 1**: Spawns hybrid v1 harvesters/upgraders/builders to supply spawn and upgrade controller.
-- **RCL 2**: Builds source containers + first 5 extensions. Unlocks static mining, carriers, fast transporters, and replaces v1 units via graceful retirement.
-- **RCL 3**: Builds defensive towers and additional extensions.
-- **RCL 4+**: Unlocks storage and advanced link logistics.
+- **Emergency State**: Spawns low-cost harvesters to restore room energy flow.
+- **Hostile Alert**: Automatically scales defenders (5 Melee, 5 Ranged, 2 Healers) on top priority.
+- **Logistics & Infrastructure**: Mules maintain throughput between containers while Builders maintain high-speed paved transit lanes when idle.
