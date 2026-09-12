@@ -42,9 +42,30 @@ const managerTransporter = {
             name: 'harvestcontainer_to_spawn',
             room: 'W2N2',
             from: { x: 10, y: 26 }, // Source container position or ID
-            to: 'spawn',            // Delivers to Spawns & Extensions
+            to: { x: 18, y: 24 },            // Delivers to Spawns & Extensions
             count: 1
-        }
+        },
+        {
+            name: 'conSource_to_updater',
+            room: 'W2N2',
+            from: { x: 16, y: 26 }, // Source container position or ID
+            to: { x: 22, y: 18 },            // Delivers to Spawns & Extensions
+            count: 1
+        },
+        {
+            name: 'harvest1',
+            room: 'W2N2',
+            from: { x: 6, y: 21},  // Source container position or ID
+            to: { x: 8, y: 25 },            // Delivers to Spawns & Extensions
+            count: 1
+        },
+        {
+            name: 'harvest2',
+            room: 'W2N2',
+            from: { x: 8, y: 25},  // Source container position or ID
+            to: { x: 15, y: 24 },            // Delivers to Spawns & Extensions
+            count: 1
+        },
     ],
 
     /**

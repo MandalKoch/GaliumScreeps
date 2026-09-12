@@ -4,6 +4,7 @@
  * Utilizes high-speed CARRY:MOVE body ratios to maximize delivery speed.
  */
 const managerIdle = require('manager.idle');
+const managerTransporter = require('manager.transporter');
 
 const roleTransporter = {
     /**
@@ -82,6 +83,18 @@ const roleTransporter = {
 
     /** @param {Creep} creep **/
     run: function (creep) {
+        // Auto-resolve route definition if from/to are missing in creep memory
+        if (creep.memory.route && (!creep.memory.from || !creep.memory.to)) {
+            const routeConfig = managerTransporter.routes.find(
+                (r) => r.name === creep.memory.route && (r.room === creep.room.name || !r.room)
+            );
+            if (routeConfig) {
+                creep.memory.from = creep.memory.from || routeConfig.from;
+                creep.memory.to = creep.memory.to || routeConfig.to;
+                creep.memory.resourceType = creep.memory.resourceType || routeConfig.resourceType || RESOURCE_ENERGY;
+            }
+        }
+
         const resourceType = creep.memory.resourceType || RESOURCE_ENERGY;
 
         // State toggles
@@ -169,7 +182,6 @@ const roleTransporter = {
                             visualizePathStyle: { stroke: '#888888', lineStyle: 'dashed' }
                         });
                     }
-                    creep.say('⏳ wait');
                     return;
                 }
             } else {

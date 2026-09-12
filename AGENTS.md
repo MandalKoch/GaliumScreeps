@@ -14,7 +14,7 @@ The main loop runs strictly in the following sequence every tick:
    - **Tower Management** (`manager.towers.js`): Hostile attack > Creep heal > Structure repair.
    - **RCL-Adaptive Spawner Management**: Dynamically routes spawners based on Controller Level (`manager.spawner.js` for RCL 1, `manager.spawnerRCL2.js` for RCL 2+).
    - **Room Statistics & Dashboards** (`manager.stats.js`): Tracks throughput, gathering/upgrade rates, routes, and CPU.
-4. **Creep Role Execution**: Executes role behavior loops (`role.harvester`, `role.carrier`, `role.transporter`, `role.upgrader`, `role.builder`).
+4. **Creep Role Execution**: Executes role behavior loops (`role.harvester`, `role.carrier`, `role.transporter`, `role.upgrader`, `role.builder`, `role.defender`).
 5. **CPU Bucket Maintenance**: Checks `Game.cpu.generatePixel` and generates pixels when bucket reaches 10,000.
 
 ---
@@ -39,6 +39,7 @@ The main loop runs strictly in the following sequence every tick:
 - **`role.transporter.js`**: High-speed dedicated route transporter (1:1 `CARRY:MOVE` ratio). Executes specific container-to-container or container-to-spawn routes defined in `manager.transporter.js` with automatic overflow balancing.
 - **`role.upgrader.js`**: Room controller upgrader. Withdraws energy from controller containers or nearby storage to continuously upgrade the Room Controller.
 - **`role.builder.js`**: Construction and maintenance specialist. Prioritizes construction sites (`Towers` > `Extensions` > `Containers` > `Walls/Ramparts` > `Roads`), automatically loads room blueprints (`room.<RoomName>.js`), and performs urgent repairs.
+- **`role.defender.js`**: Room security and military defender. Gathers at the `defend` flag during peacetime and engages hostiles with high priority (targeting healers and attackers first).
 
 ### Room Blueprints (`room.*.js`)
 - **`room.W2N2.js`**: Room layout blueprint for `W2N2`. Defines planned construction coordinates (`constructions` array with `type`, `x`, `y`, `minRcl`), dynamically loaded and queued by builder creeps.
@@ -70,6 +71,7 @@ The main loop runs strictly in the following sequence every tick:
 - **Dedicated Hauler / Carrier (v2)**: 2 `CARRY` : 1 `MOVE` (roads) or 1 `CARRY` : 1 `MOVE` (plains).
 - **Fast Route Transporter**: 1 `CARRY` : 1 `MOVE` for 100% full speed on plains and roads.
 - **Upgrader / Builder (v2)**: Balanced throughput (e.g., 2-4 `WORK`, 1-2 `CARRY`, 1-2 `MOVE`).
+- **Defender / Warrior**: Frontline armor with `TOUGH` leading body, heavy `ATTACK`, and 1:1 `MOVE` ratio for unhindered combat agility.
 
 ---
 

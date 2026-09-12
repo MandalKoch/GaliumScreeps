@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build and Transpilation Outputs
+dist/
+build/
+out/
+bin/
+obj/
+*.tsbuildinfo
+*.map
+
+# Screeps Credentials & Local Configs
+.screeps.json
+screeps.json
+.screeps.yaml
+screeps.env
+.env
+.env.*
+!.env.example
+
+# Logs & Diagnostics
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDEs and Code Editors
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Testing & Coverage
+coverage/
+.nyc_output/

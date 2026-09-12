@@ -6,6 +6,8 @@ const roleCarrier = require('role.carrier');
 const roleTransporter = require('role.transporter');
 const roleUpgrader = require('role.upgrader');
 const roleBuilder = require('role.builder');
+const roleDefender = require('role.defender');
+const roleHarvesterW2N1 = require('role.harvesterW2N1');
 const managerTowers = require('manager.towers');
 const managerSpawner = require('manager.spawner');
 const managerSpawnerRcl2 = require('manager.spawnerRCL2');
@@ -71,6 +73,13 @@ module.exports.loop = function () {
                 break;
             case 'builder':
                 roleBuilder.run(creep);
+                break;
+            case 'defender':
+            case 'warrior':
+                roleDefender.run(creep);
+                break;
+            case 'harvesterW2N1':
+                roleHarvesterW2N1.run(creep);
                 break;
             default:
                 break;

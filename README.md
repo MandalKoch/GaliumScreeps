@@ -27,7 +27,8 @@ The project uses a clean, modular CommonJS architecture where roles, managers, a
 │   ├── role.carrier.js         # General room hauler (dropped energy, ruins, extensions, towers)
 │   ├── role.transporter.js     # Fast route transporter (1:1 CARRY:MOVE for specific routes)
 │   ├── role.upgrader.js        # Controller upgrader (withdraws from containers/storage)
-│   └── role.builder.js         # Prioritized builder & dynamic room blueprint executor
+│   ├── role.builder.js         # Prioritized builder & dynamic room blueprint executor
+│   └── role.defender.js        # Military defender & peacetime flag rally role
 │
 └── Room Blueprints:
     └── room.W2N2.js            # Planned layout & coordinates for room W2N2
@@ -61,8 +62,9 @@ The project uses a clean, modular CommonJS architecture where roles, managers, a
   5. `Roads` (Movement speed & decay prevention)
 - **Dynamic Blueprint Loading**: `role.builder.js` dynamically checks and loads `room.<RoomName>.js` based on the creep's current room, caching loaded modules to save CPU.
 
-### 5. Automated Tower Defense (`manager.towers.js`)
+### 5. Automated Tower Defense & Active Military (`manager.towers.js` & `role.defender.js`)
 - Detects hostiles entering the room and coordinates multiple towers to focus-fire invaders.
+- **Defenders (`role.defender.js`)**: Armed combat creeps assemble and patrol at the `defend` flag during peacetime and immediately engage hostile invaders with target prioritization (healers > attackers > closest).
 - Heals damaged friendly creeps in the room.
 - Performs automated maintenance on critical ramparts, walls, and decaying containers when energy is above 50%.
 
@@ -129,10 +131,10 @@ constructions: [
 ]
 ```
 
-### 3. Setting Up Idle Parking Flags
-1. In the Screeps game client, place a flag in your room on an empty tile away from spawns and roads.
-2. Name the flag `Idle_W2N2` (or `Parking` / `Idle`).
-3. Alternatively, map it explicitly in `manager.idle.js`:
+### 3. Setting Up Idle Parking & Defense Flags
+1. **Idle Parking**: Place a flag named `Idle_W2N2` (or `Parking` / `Idle`) away from roads to keep spawns clear.
+2. **Defense Rally Flag**: Place a flag named `defend` (or `Defend`, `defend_W2N2`) where you want your defender creeps to assemble, hold position, and guard your base when no invaders are present.
+3. Alternatively, configure explicit room mappings in `manager.idle.js`:
    ```javascript
    roomFlags: {
        'W2N2': 'Idle_W2N2'

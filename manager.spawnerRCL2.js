@@ -71,6 +71,50 @@ const managerSpawnerRcl2 = {
                 }
                 break;
             }
+            case 'defender':
+            case 'warrior': {
+                // Tough in front to absorb hits, Attack for melee damage, Move for 1:1 speed on plains
+                if (energy >= 550) {
+                    body.push(TOUGH, TOUGH, ATTACK, ATTACK, ATTACK, ATTACK, MOVE, MOVE, MOVE, MOVE);
+                } else if (energy >= 400) {
+                    body.push(TOUGH, ATTACK, ATTACK, ATTACK, MOVE, MOVE, MOVE);
+                } else if (energy >= 300) {
+                    body.push(TOUGH, TOUGH, ATTACK, ATTACK, MOVE, MOVE);
+                } else if (energy >= 140) {
+                    body.push(TOUGH, ATTACK, MOVE);
+                } else {
+                    body.push(ATTACK, MOVE);
+                }
+                break;
+            }
+            case 'shooter': {
+                // Tough in front to absorb hits, Attack for melee damage, Move for 1:1 speed on plains
+                if (energy >= 550) {
+                    body.push(TOUGH, TOUGH, RANGED_ATTACK, RANGED_ATTACK, RANGED_ATTACK, HEAL, MOVE, MOVE, MOVE, MOVE);
+                } else if (energy >= 400) {
+                    body.push(TOUGH, RANGED_ATTACK, RANGED_ATTACK, HEAL, MOVE, MOVE, MOVE);
+                } else if (energy >= 300) {
+                    body.push(TOUGH, TOUGH, RANGED_ATTACK, HEAL, MOVE, MOVE);
+                } else if (energy >= 140) {
+                    body.push(TOUGH, RANGED_ATTACK, MOVE);
+                } else {
+                    body.push(RANGED_ATTACK, MOVE);
+                }
+                break;
+            }
+            case 'harvesterW2N1': {
+                // Focus on CARRY and MOVE for long distance
+                if (energy >= 550) {
+                    body.push(WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE);
+                } else if (energy >= 400) {
+                    body.push(WORK, WORK, CARRY, CARRY, MOVE, MOVE);
+                } else if (energy >= 300) {
+                    body.push(WORK, CARRY, CARRY, MOVE, MOVE);
+                } else {
+                    body.push(WORK, CARRY, MOVE);
+                }
+                break;
+            }
             case 'harvester':
             default: {
                 // Heavy WORK miner/harvester to extract energy quickly
@@ -131,23 +175,42 @@ const managerSpawnerRcl2 = {
         const creeps = room.find(FIND_MY_CREEPS);
 
         const harvesters = creeps.filter((c) => c.memory.role === 'harvester');
+        const harvestersW2N1 = creeps.filter((c) => c.memory.role === 'harvesterW2N1');
         const carriers = creeps.filter((c) => c.memory.role === 'carrier' || c.memory.role === 'hauler');
         const upgraders = creeps.filter((c) => c.memory.role === 'upgrader');
         const builders = creeps.filter((c) => c.memory.role === 'builder');
-
+        const defenders = creeps.filter((c) => c.memory.role === 'defender' || c.memory.role === 'warrior');
+        const shooters = creeps.filter((c) => c.memory.role === 'defender' || c.memory.role === 'shooter');
+        
         // Filter active up-to-date creeps (excluding any marked for retirement)
         const activeHarvesters = harvesters.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
+        const activeHarvestersW2N1 = harvestersW2N1.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
         const activeCarriers = carriers.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
         const activeUpgraders = upgraders.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
         const activeBuilders = builders.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
-
+        const activeDefenders = defenders.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
+        const activeShooters = shooters.filter((c) => c.memory.version === this.version && !c.memory.retire && !c.memory.suicide);
+            
         // Population targets
-        const minHarvesters = 2;
-        const minCarriers = 2;
-        const minUpgraders = 8;
+        const minHarvesters = 6;
+        const minHarvestersW2N1 = 25;
+        const minCarriers = 1;
+        const minUpgraders = 4;
         const constructionSites = room.find(FIND_CONSTRUCTION_SITES);
         const minBuilders = constructionSites.length > 0 ? 4 : 1;
 
+        // Check if defend flag or threats exist
+        const hostiles = room.find(FIND_HOSTILE_CREEPS);
+        const hasDefendFlag = !!(
+            Game.flags['defend'] ||
+            Game.flags['Defend'] ||
+            Game.flags[`defend_${room.name}`] ||
+            Game.flags[`Defend_${room.name}`] ||
+            Object.keys(Game.flags).some((f) => f.toLowerCase().includes('defend'))
+        );
+        const minDefenders = (hasDefendFlag || hostiles.length > 0) ? (hostiles.length > 0 ? 2 : 1) : 0;
+        const minShooters = (hasDefendFlag || hostiles.length > 0) ? (hostiles.length > 0 ? 2 : 1) : 1;
+        
         // Emergency Recovery: If no harvesters exist at all and energy is below capacity, spawn a minimal body
         if (harvesters.length === 0) {
             const emergencyBody = [WORK, CARRY, MOVE]; // 200 energy
@@ -180,6 +243,12 @@ const managerSpawnerRcl2 = {
         if (activeHarvesters.length < minHarvesters) {
             roleToSpawn = 'harvester';
             prefix = `Harvester_v${this.version}`;
+        } else if (hostiles.length > 0 && activeDefenders.length < minDefenders) {
+            roleToSpawn = 'defender';
+            prefix = `Defender_v${this.version}`;
+        } else if (activeBuilders.length < minBuilders) {
+            roleToSpawn = 'builder';
+            prefix = `Builder_v${this.version}`;
         } else if (activeCarriers.length < minCarriers) {
             roleToSpawn = 'carrier';
             prefix = `Carrier_v${this.version}`;
@@ -194,12 +263,15 @@ const managerSpawnerRcl2 = {
                 resourceType: routeToSpawn.resourceType || RESOURCE_ENERGY,
                 version: this.version
             };
+        } else if (activeDefenders.length < minDefenders) {
+            roleToSpawn = 'defender';
+            prefix = `Defender_v${this.version}`;
         } else if (activeUpgraders.length < minUpgraders) {
             roleToSpawn = 'upgrader';
             prefix = `Upgrader_v${this.version}`;
-        } else if (activeBuilders.length < minBuilders) {
-            roleToSpawn = 'builder';
-            prefix = `Builder_v${this.version}`;
+        } else if (activeHarvestersW2N1.length < minHarvestersW2N1) {
+            roleToSpawn = 'harvesterW2N1';
+            prefix = 'HarvesterW2N1';
         }
 
         if (roleToSpawn && room.energyAvailable >= targetEnergy) {

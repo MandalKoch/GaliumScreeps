@@ -21,6 +21,15 @@ const managerSpawner = {
             return body;
         }
 
+        if (role === 'defender' || role === 'warrior') {
+            if (energyCapacity >= 300) {
+                return [TOUGH, TOUGH, ATTACK, ATTACK, MOVE, MOVE];
+            } else if (energyCapacity >= 140) {
+                return [TOUGH, ATTACK, MOVE];
+            }
+            return [ATTACK, MOVE];
+        }
+
         // Base cost: WORK=100, CARRY=50, MOVE=50
         // Standard worker segment: [WORK, CARRY, MOVE] = 200 energy
         const segmentCost = 200;
@@ -51,12 +60,23 @@ const managerSpawner = {
         const harvesters = creeps.filter((c) => c.memory.role === 'harvester');
         const upgraders = creeps.filter((c) => c.memory.role === 'upgrader');
         const builders = creeps.filter((c) => c.memory.role === 'builder');
+        const defenders = creeps.filter((c) => c.memory.role === 'defender' || c.memory.role === 'warrior');
 
         // Population targets
         const minHarvesters = 2;
         const minUpgraders = 3;
         const constructionSites = room.find(FIND_CONSTRUCTION_SITES);
         const minBuilders = constructionSites.length > 0 ? 2 : 1;
+
+        const hostiles = room.find(FIND_HOSTILE_CREEPS);
+        const hasDefendFlag = !!(
+            Game.flags['defend'] ||
+            Game.flags['Defend'] ||
+            Game.flags[`defend_${room.name}`] ||
+            Game.flags[`Defend_${room.name}`] ||
+            Object.keys(Game.flags).some((f) => f.toLowerCase().includes('defend'))
+        );
+        const minDefenders = (hasDefendFlag || hostiles.length > 0) ? (hostiles.length > 0 ? 2 : 1) : 0;
 
         // Emergency Recovery: If no harvesters exist and energy is below capacity, spawn a minimal body
         if (harvesters.length === 0) {
@@ -86,6 +106,9 @@ const managerSpawner = {
         if (harvesters.length < minHarvesters) {
             roleToSpawn = 'harvester';
             prefix = 'Harvester';
+        } else if (hostiles.length > 0 && defenders.length < minDefenders) {
+            roleToSpawn = 'defender';
+            prefix = 'Defender';
         } else if (routeToSpawn) {
             roleToSpawn = 'transporter';
             prefix = `Transporter_${routeToSpawn.name}`;
@@ -97,6 +120,9 @@ const managerSpawner = {
                 resourceType: routeToSpawn.resourceType || RESOURCE_ENERGY,
                 version: 1
             };
+        } else if (defenders.length < minDefenders) {
+            roleToSpawn = 'defender';
+            prefix = 'Defender';
         } else if (upgraders.length < minUpgraders) {
             roleToSpawn = 'upgrader';
             prefix = 'Upgrader';
