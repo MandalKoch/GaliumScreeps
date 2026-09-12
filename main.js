@@ -7,10 +7,10 @@ const roleUpdater = require('role.updater');
 const roleBuilder = require('role.builder');
 const roleMule = require('role.mule');
 const roleDefender = require('role.defender');
+const roleSpawnMuler = require('role.spawnmule');
 const managerSpawner = require('manager.spawner');
 const managerStats = require('manager.stats');
 const managerTower = require('manager.tower');
-
 module.exports.loop = function () {
     // 1. Memory Cleanup: Purge dead creeps
     for (const name in Memory.creeps) {
@@ -33,6 +33,9 @@ module.exports.loop = function () {
     for (const creepName in Game.creeps) {
         const creep = Game.creeps[creepName];
         switch (creep.memory.role) {
+            case 'spawmMuler':
+                roleSpawnMuler.run(creep);
+                break;
             case 'harvester':
                 roleHarvester.run(creep);
                 break;

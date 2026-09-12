@@ -12,35 +12,21 @@ const MULES = [
         room: 'W9N9',
         source: '6aa55d271698000037e631d7',
         target: '6aa57a611964a00035340301',
-        count: 10 
-    },
-    {
-        route: 'spawnfiller1',
-        room: 'W9N9',
-        source: '6aa5a02e1964a00035340668',
-        target: '6aa5432a8c67d000382ebecb',
-        count: 1
-    },
-    {
-        route: 'spawnfiller2',
-        room: 'W9N9',
-        source: '6aa5a3ef104aaf003c9e62a6',
-        target: '6aa5432a8c67d000382ebecb',
-        count: 1
+        count: 5 
     },
     {
         route: 'harvesterRoute1',
         room: 'W9N9',
         source: '6aa5a02e1964a00035340668',
         target: '6aa55d271698000037e631d7',
-        count: 5
+        count: 2
     },
     {
         route: 'harvesterRoute2',
         room: 'W9N9',
         source: '6aa5a3ef104aaf003c9e62a6',
         target: '6aa55d271698000037e631d7',
-        count: 5
+        count: 2
     }
 ];
 
@@ -117,12 +103,17 @@ function goDeliver(creep) {
     const target = getTargetObject(creep, targetDef);
 
     if (target) {
-        if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+        let dropOfReslult = creep.transfer(target, RESOURCE_ENERGY);
+        if (dropOfReslult === ERR_NOT_IN_RANGE) {
             creep.moveTo(target, {
                 reusePath: 15,
                 visualizePathStyle: { stroke: '#ffffff' }
             });
         }
+        else if (dropOfReslult === ERR_FULL) {
+                creep.say('⚡ FULL');
+                creep.drop(RESOURCE_ENERGY);
+        }        
     } else {
         idle.park(creep);
     }

@@ -5,6 +5,7 @@
 const roleHarvester = require('role.harvester');
 const roleRemoteHarvester = require('role.remoteharvester');
 const roleMule = require('role.mule');
+const roleSpawnMule = require("./role.spawnmule");
 
 const managerSpawner = {
     
@@ -25,7 +26,6 @@ const managerSpawner = {
         const minDefenderMelee = hasHostiles ? 5 : 2;
         const minDefenderRanged = hasHostiles ? 5 : 2;
         const minDefenderHealer = hasHostiles ? 2 : 1;
-        const minHarvester = 10;
         const minUpdater = 5;
         const minBuilder = spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length > 0 ? 2 : 1;
         
@@ -89,9 +89,10 @@ const managerSpawner = {
                 neededRemoteHarvesterRoute = { route, current: activeCount };
                 break;
             }
-        }
+        }     
         
         // 1. Emergency recovery if harvesters are critically low
+        spawnSpawnMuler(spawn);
         if (activeHarvester <= 1) {
             const emergencyRoute = neededHarvesterRoute ? neededHarvesterRoute.route : null;
             spawnEmergencyHarvester(spawn, emergencyRoute);
@@ -102,7 +103,7 @@ const managerSpawner = {
             if (spawn.room.energyAvailable < 280) {
                 return;
             }
-            console.log(`🚨 [ALERT] Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
+                console.log(`🚨 [ALERT] Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
             spawnDefenderMelee(spawn);
         }
         else if (hasHostiles && activeDefenderHealer < minDefenderHealer) {
@@ -141,14 +142,22 @@ const managerSpawner = {
             console.log(`Spawning mule ${neededMuleRoute.current}/${neededMuleRoute.route.count} (${neededMuleRoute.route.route})`);
             spawnMule(spawn, neededMuleRoute.route);
         }
-        else if (neededRemoteHarvesterRoute) {
-            if (spawn.room.energyAvailable < 500) {
+        // 4. Room progression: Updaters & Builders
+        else if (activeUpdater < minUpdater) {
+            if (spawn.room.energyAvailable < 400) {
                 return;
             }
-            console.log(`Spawning remote harvester ${neededRemoteHarvesterRoute.current}/${neededRemoteHarvesterRoute.route.count} (${neededRemoteHarvesterRoute.route.route})`);
-            spawnRemoteHarvester(spawn, neededRemoteHarvesterRoute.route);
+            console.log(`Spawning updater ${activeUpdater}/${minUpdater}`);            
+            spawnUpdater(spawn);
         }
-        // 4. Peacetime standing army (2 melee, 2 ranged, 1 healer)
+        else if (activeBuilder < minBuilder) {
+            if (spawn.room.energyAvailable < 400) {
+                return;
+            }
+            console.log(`Spawning builder ${activeBuilder}/${minBuilder}`);
+            spawnBuilder(spawn);
+        }
+        // 5. Peacetime standing army (2 melee, 2 ranged, 1 healer)
         else if (activeDefenderMelee < minDefenderMelee) {
             if (spawn.room.energyAvailable < 280) {
                 return;
@@ -170,24 +179,36 @@ const managerSpawner = {
             console.log(`Spawning combat healer ${activeDefenderHealer}/${minDefenderHealer}`);
             spawnDefenderHealer(spawn);
         }
-        // 5. Room progression: Updaters & Builders
-        else if (activeUpdater < minUpdater) {
-            if (spawn.room.energyAvailable < 400) {
+        else if (neededRemoteHarvesterRoute) {
+            if (spawn.room.energyAvailable < 500) {
                 return;
             }
-            console.log(`Spawning updater ${activeUpdater}/${minUpdater}`);            
-            spawnUpdater(spawn);
-        }
-        else if (activeBuilder < minBuilder) {
-            if (spawn.room.energyAvailable < 400) {
-                return;
-            }
-            console.log(`Spawning builder ${activeBuilder}/${minBuilder}`);
-            spawnBuilder(spawn);
+            console.log(`Spawning remote harvester ${neededRemoteHarvesterRoute.current}/${neededRemoteHarvesterRoute.route.count} (${neededRemoteHarvesterRoute.route.route})`);
+            spawnRemoteHarvester(spawn, neededRemoteHarvesterRoute.route);
         }
     }
 };
 
+function spawnSpawnMuler(spawn){
+    return;
+    const body = [CARRY, MOVE];
+    const spawnMule = roleSpawnMule.config ? roleSpawnMule.config.filter(r =>
+        r.room === spawn.room.name) : [];
+
+    for (const mule of spawnMule) {
+        let activeSpawnMuler = spawn.room.find(FIND_MY_CREEPS, {
+            filter: (creep) =>
+                creep.memory.role === 'spawmMuler' && creep.memory.route === mule.route
+        })
+        if (activeSpawnMuler.length === 0) {
+            const name = 'SpawmMuler' + Game.time;
+            spawn.spawnCreep(body, name, { memory: { 
+                role: 'spawmMuler',
+                route: mule.route
+            }});
+        }
+    }
+}
 
 function spawnDefenderMelee(spawn) {
     const body = [TOUGH, TOUGH, ATTACK, ATTACK, MOVE, MOVE]; // 280 energy
