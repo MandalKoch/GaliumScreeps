@@ -18,6 +18,12 @@ const REMOTE_HARVESTERS = [
         room: 'W3N1',
         homeRoom: 'W2N2',
         count: 20
+    },
+    {
+        route: 'W3N1',
+        room: 'W3N2',
+        homeRoom: 'W2N2',
+        count: 20
     }
 ];
 

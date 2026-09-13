@@ -52,22 +52,11 @@ const roleBMule = {
 /**
  * Resolves destination target from ID
  */
-function getTargetObject(creep, targetDef) {
-    if (!targetDef) return null;
-    var targets = creep.room.lookForAt(LOOK_STRUCTURES, targetDef.x, targetDef.y);
+function getContainerAt(creep, x, y) {
+    var targets = creep.room.lookForAt(LOOK_STRUCTURES, x, y);
     return targets[0];
 }
 
-/**
- * Resolves energy source from ID
- */
-function getSourceObject(creep, sourceDef) {
-    if (!sourceDef) return null;
-    if (typeof sourceDef === 'string') {
-        return Game.getObjectById(sourceDef.trim());
-    }
-    return sourceDef;
-}
 
 /**
  * Determines whether a source object has 0 available energy
@@ -95,7 +84,7 @@ function getMuleRoute(creep) {
 
 function goDeliver(creep) {
     const routeConfig = getMuleRoute(creep);
-    const target = getTargetObject(creep, routeConfig);
+    const target = getContainerAt(creep, routeConfig.targetx, routeConfig.targety);
     
     if (creep.memory.goToSpawn === true) 
     {
@@ -142,8 +131,7 @@ function goDeliver(creep) {
 
 function goPickUp(creep) {
     const routeConfig = getMuleRoute(creep);
-    const sourceDef = routeConfig ? routeConfig.source : creep.memory.source;
-    const source = getSourceObject(creep, sourceDef);
+    const source = getContainerAt(creep, routeConfig.sourcex, routeConfig.sourcey);
 
     if (!source || isSourceEmpty(source)) {
         if (creep.store[RESOURCE_ENERGY] > 0) {

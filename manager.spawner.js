@@ -190,33 +190,33 @@ const managerSpawner = {
         }
         // 5. Peacetime standing army (2 melee, 2 ranged, 1 healer)
         else if (activeDefenderMelee < minDefenderMelee) {
-            if (spawn.room.energyAvailable < 280) {
+            if (spawn.room.energyAvailable < spawn.room.energyCapacityAvailable) {
                 return;
             }
             spawnDefenderMelee(spawn);
-            if( spawn.memory.currentJob === 'melee defender' )
+            if( spawn.memory.currentJob === 'meleedefender' )
                 return;
-            spawn.memory.currentJob = 'melee defender';
+            spawn.memory.currentJob = 'meleedefender';
             console.log(`Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
         }
         else if (activeDefenderRanged < minDefenderRanged) {
-            if (spawn.room.energyAvailable < 200) {
+            if (spawn.room.energyAvailable < spawn.room.energyCapacityAvailable) {
                 return;
             }
             spawnDefenderRanged(spawn);
-            if( spawn.memory.currentJob === 'ranged defender ' )
+            if( spawn.memory.currentJob === 'rangeddefender' )
                 return;
-            spawn.memory.currentJob = 'ranged defender';
+            spawn.memory.currentJob = 'rangeddefender';
             console.log(`Spawning ranged defender ${activeDefenderRanged}/${minDefenderRanged}`);
         }
         else if (activeDefenderHealer < minDefenderHealer) {
-            if (spawn.room.energyAvailable < 400) {
+            if (spawn.room.energyAvailable < spawn.room.energyCapacityAvailable) {
                 return;
             }
             spawnDefenderHealer(spawn);
-            if( spawn.memory.currentJob === 'combat healer' )
+            if( spawn.memory.currentJob === 'combathealer' )
                 return;
-            spawn.memory.currentJob = 'combat healer';
+            spawn.memory.currentJob = 'combathealer';
             console.log(`Spawning combat healer ${activeDefenderHealer}/${minDefenderHealer}`);
         }
         else if (neededRemoteHarvesterRoute) {
@@ -224,9 +224,9 @@ const managerSpawner = {
                 return;
             }
             spawnRemoteHarvester(spawn, neededRemoteHarvesterRoute.route);
-            if( spawn.memory.currentJob === 'remote harvester' )
+            if( spawn.memory.currentJob === 'remoteharvester' )
                 return;
-            spawn.memory.currentJob = 'remote harvester';
+            spawn.memory.currentJob = 'remoteharvester';
             console.log(`Spawning remote harvester ${neededRemoteHarvesterRoute.current}/${neededRemoteHarvesterRoute.route.count} (${neededRemoteHarvesterRoute.route.route})`);
         }
         else{
@@ -293,19 +293,45 @@ function spawnSpawnMuler(spawn){
 }
 
 function spawnDefenderMelee(spawn) {
-    const body = [TOUGH, TOUGH, ATTACK, ATTACK, MOVE, MOVE]; // 280 energy
+    let body = [ TOUGH, TOUGH, ATTACK, MOVE ];
+    let energyThere = spawn.room.energyAvailable - 200;
+
+    while (energyThere > 150)
+    {
+        body.push(TOUGH);
+        body.push(TOUGH);
+        body.push(ATTACK);
+        body.push(MOVE);
+        energyThere -= 150;
+    }       
+    
     const name = 'DefMelee' + Game.time;
-    spawn.spawnCreep(body, name, { memory: { role: 'defenderMelee' } });
+    spawn.spawnCreep(body, name, { memory: { role: 'defenderMelee' } }) 
 }
 
 function spawnDefenderRanged(spawn) {
-    const body = [TOUGH, RANGED_ATTACK, MOVE, MOVE]; // 260 energy
+    let body = [TOUGH, RANGED_ATTACK, MOVE, MOVE]; // 260 energy
+    let energyThere = spawn.room.energyAvailable - 260;
+    while (energyThere > 200)
+    {
+        body.push(RANGED_ATTACK);
+        body.push(MOVE);
+        energyThere -= 200;
+    }
     const name = 'DefRanged' + Game.time;
     spawn.spawnCreep(body, name, { memory: { role: 'defenderRanged' } });
 }
 
 function spawnDefenderHealer(spawn) {
-    const body = [HEAL, MOVE]; // 300 energy (250 HEAL + 50 MOVE)
+
+    let body = [HEAL, MOVE]; // 300 energy (250 HEAL + 50 MOVE)
+    let energyThere = spawn.room.energyAvailable - 300;
+    while (energyThere > 300)
+    {
+        body.push(HEAL);
+        body.push(MOVE);
+        energyThere -= 300;
+    }
     const name = 'DefHealer' + Game.time;
     spawn.spawnCreep(body, name, { memory: { role: 'defenderHealer' } });
 }
@@ -422,29 +448,39 @@ function spawnRemoteHarvester(spawn, route) {
 function spawnUpdater(spawn){
     let level = spawn.room.energyCapacityAvailable;
     let body = null;
-    if (level >= 300)
+    if (level < 300)
+    {
+        if (spawn.room.energyAvailable < 200)
+            return;
+        body = [WORK, CARRY, MOVE];
+    }
+    else if (level < 400)
     {
         if (spawn.room.energyAvailable < 300)
             return;
-        body = [WORK, CARRY, CARRY, MOVE, MOVE]
+        body = [WORK, WORK, CARRY, MOVE]
     }
-    else if (level >= 400)
+    else if (level < 500)
     {
         if (spawn.room.energyAvailable < 400)
             return;
         body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE]
     }
-    else if (level >= 500)
-    {
-        if (spawn.room.energyAvailable < 500)
-            return; 
-        body = [WORK, WORK, CARRY, CARRY, MOVE, CARRY, MOVE, MOVE]
-    }
     else
     {
-        if (spawn.room.energyAvailable < 200)
+        if (spawn.room.energyAvailable < 400)
             return;
-        body = [WORK, CARRY, MOVE];
+
+        let energyThere = spawn.room.energyAvailable - 200;
+        body = [WORK, WORK];
+        while (energyThere > 0)
+        {
+            body.push(CARRY);
+            body.push(MOVE);
+            energyThere -= 100;
+        }
+        if (spawn.room.energyAvailable < 500)
+            return;
     }
     const name = 'Updater' + Game.time;
     spawn.spawnCreep(body, name, { memory: { role: 'updater' } });
@@ -453,61 +489,50 @@ function spawnUpdater(spawn){
 function spawnBuilder(spawn){
     let level = spawn.room.energyCapacityAvailable;
     let body = null;
-    if (level >= 300)
-    {
-        if (spawn.room.energyAvailable < 300)
-            return;
-        body = [WORK, CARRY, CARRY,  MOVE, MOVE];
-    }
-    else if (level >= 400)
-    {
-        if (spawn.room.energyAvailable < 400)
-            return;
-        body = [WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
-    }
-    else if (level >= 500)
-    {
-        if (spawn.room.energyAvailable < 500)
-            return;
-        body = [WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
-    }
-    else
+    if (level < 300)
     {
         if (spawn.room.energyAvailable < 200)
             return;
         body = [WORK, CARRY, MOVE];
+    }
+    else if (level < 400)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [WORK, WORK, CARRY, MOVE]
+    }
+    else if (level < 500)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE]
+    }
+    else
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+
+        let energyThere = spawn.room.energyAvailable - 200;
+        body = [WORK, WORK];
+        while (energyThere > 0)
+        {
+            body.push(CARRY);
+            body.push(MOVE);
+            energyThere -= 100;
+        }
+        if (spawn.room.energyAvailable < 500)
+            return;
     }
     const name = 'Builder' + Game.time;
     spawn.spawnCreep(body, name, { memory: { role: 'builder' } });
 }
 
 function spawnMule(spawn, route){
-    let body = null;
-    let level = spawn.room.energyCapacityAvailable;
-    if (level >= 300)
-    {
-        if (spawn.room.energyAvailable < 300)
-            return;
-        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
-    }
-    else if (level >= 400)
-    {
-        if (spawn.room.energyAvailable < 400)
-            return;
-        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
-    }
-    else if (level >= 500)
-    {
-        if (spawn.room.energyAvailable < 500)
-            return;
-        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
-    }
-    else
-    {
-        if (spawn.room.energyAvailable < 100)
-            return;
-        body = [CARRY, MOVE]
-    }
+    
+    if (spawn.room.energyAvailable < 200)
+        return;
+    body = [CARRY, MOVE, CARRY, MOVE,]
+    
     const name = 'Mule' + Game.time;
     spawn.spawnCreep(body, name, {
         memory: {

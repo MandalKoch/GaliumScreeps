@@ -2,28 +2,27 @@ const MULES = [
     {
         route: 'spawnfiller1',
         room: 'W2N2',
-        source: '6aa6607b12550b003faf31c5'
+        sourcex: 8,
+        sourcey: 25
     },
     {
         route: 'spawnfiller2',
         room: 'W2N2',
-        source: '6aa6638612550b003faf31ed'
+        sourcex: 6,
+        sourcey: 21
     },
     {
-        route: 'spawnfiller1_2',
+        route: 'spawnfiller1_1',
         room: 'W2N2',
-        source: '6aa6607b12550b003faf31c5'
+        sourcex: 8,
+        sourcey: 25
     },
     {
-        route: 'spawnfiller1_3',
+        route: 'spawnfiller2_1',
         room: 'W2N2',
-        source: '6aa6607b12550b003faf31c5'
+        sourcex: 6,
+        sourcey: 21
     },
-    {
-        route: 'spawnfiller2_2',
-        room: 'W2N2',
-        source: '6aa6638612550b003faf31ed'
-    }
 ]
 
 
@@ -64,7 +63,20 @@ function goDeliver(creep) {
 
 function goPickUp(creep) {
     let config = MULES.filter(s => s.route === creep.memory.route);
-    let source = Game.getObjectById(config[0].source);
+    let source = null;
+    if (config) {
+        let sources = creep.room.lookForAt(LOOK_STRUCTURES, config[0].sourcex, config[0].sourcey);
+        source = sources[0];
+    }
+    else
+    {
+        source = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+            filter: (s) =>
+                ( s.structureType === STRUCTURE_CONTAINER ||
+                s.structureType === STRUCTURE_STORAGE )
+            && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+    }
     if (creep.withdraw(source, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
         creep.moveTo(source);
     }

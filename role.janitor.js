@@ -11,7 +11,7 @@ require('./helper.source');
 // Optional room-specific janitor configurations
 const JANITORS = [
     // Example: { room: 'W9N9', count: 1 }
-    {room: 'W2N2', count: 10}
+    {room: 'W2N2', count: 1}
 ];
 
 // Defined container locations: specify room and coordinates (x, y) or target ID
