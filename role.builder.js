@@ -2,8 +2,7 @@
  * Builder Role
  * Constructs buildings, and when idle plans, builds, and repairs roads.
  */
-const idle = require('./manager.idle');
-const roleJanitor = require('role.janitor');
+const roleJanitorV2 = require('role.janitor');
 require('helper.source');
 
 // Define road routes to maintain and build when idle
@@ -116,7 +115,7 @@ function goDeliver(creep) {
     }
 
     // 4. If nothing to do fall back to janitor
-    roleJanitor.run(creep);
+    roleJanitorV2.run(creep);
 }
 
 function goGather(creep) {

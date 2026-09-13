@@ -8,19 +8,21 @@ const idle = require('./manager.idle');
 // Define harvester assignments: room, homeRoom, source ID (mining target), target ID (dropoff container), and count
 const HARVESTERS = [
     {
-        route: 'harvester_W2N2_1',
+        route: 'harvester_W2N2_1_',
         room: 'W2N2',
-        homeRoom: 'W2N2',
-        source: '399f0774a5bab03',
-        target: '6aa6607b12550b003faf31c5',
+        sourcex: 9,
+        sourcey: 23,
+        targetx: 8,
+        targety: 25,
         count: 3
     },
     {
-        route: 'harvester_W2N2_2',
+        route: 'harvester_W2N2_2_',
         room: 'W2N2',
-        homeRoom: 'W2N2',
-        source: '067b0774a5b1a72',
-        target: '6aa6638612550b003faf31ed',
+        sourcex: 4,
+        sourcey: 21,
+        targetx: 6,
+        targety: 21,
         count: 3
     }
 ];
@@ -74,7 +76,8 @@ function goDeliver(creep) {
         }
         return;
     }    
-    let target = Game.getObjectById(routeConfig.target);  
+    let targets = creep.room.lookForAt(LOOK_STRUCTURES, routeConfig.targetx, routeConfig.targety);
+    let target = targets[0];
     if (target) {
         let result = null;
         if (target.hits < target.hitsMax * 0.8)
@@ -114,7 +117,8 @@ function goDeliver(creep) {
 function goHarvest(creep) {
     const routeConfig = getHarvesterRoute(creep);
     if (routeConfig) {
-        let source = Game.getObjectById(routeConfig.source);
+        let sources = creep.room.lookForAt(LOOK_SOURCES, routeConfig.sourcex, routeConfig.sourcey);
+        let source = sources[0];
         if (creep.harvest(source, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
             creep.moveTo(source);
         }   

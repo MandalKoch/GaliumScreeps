@@ -199,8 +199,8 @@ const managerStats = {
             } else {
 
                 const savingFor = spawn.memory.currentJob;
-                const energy = spawn.store ? spawn.store.getUsedCapacity(RESOURCE_ENERGY) : 0;
-                const cap = spawn.store ? spawn.store.getCapacity(RESOURCE_ENERGY) : 300;
+                const energy = room.energyAvailablenumber;
+                const cap = spawn.store ? room.energyCapacityAvailable : 300;
                 return `${spawn.name}: saving for ${savingFor} (${energy}/${cap}e)`;
             }
         }).join(' | ');

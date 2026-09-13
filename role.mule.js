@@ -10,15 +10,19 @@ const MULES = [
     {
         route: 'harvesterRoute1',
         room: 'W2N2',
-        source: '6aa6607b12550b003faf31c5',
-        target: '6aa66e011964a000353417e0',
+        sourcex: 8,
+        sourcey: 25,
+        targetx: 16,
+        targety: 19,
         count: 3 
     },
     {
         route: 'harvesterRoute2',
         room: 'W2N2',
-        source: '6aa6638612550b003faf31ed',
-        target: '6aa66e011964a000353417e0',
+        sourcex: 6,
+        sourcey: 21,
+        targetx: 16,
+        targety: 19,
         count: 3
     },
 ];
@@ -50,10 +54,8 @@ const roleBMule = {
  */
 function getTargetObject(creep, targetDef) {
     if (!targetDef) return null;
-    if (typeof targetDef === 'string') {
-        return Game.getObjectById(targetDef.trim());
-    }
-    return targetDef;
+    var targets = creep.room.lookForAt(LOOK_STRUCTURES, targetDef.x, targetDef.y);
+    return targets[0];
 }
 
 /**
@@ -85,15 +87,15 @@ function isSourceEmpty(source) {
 }
 
 function getMuleRoute(creep) {
-    if (!creep.memory.route) return null;
-    return MULES.find((m) => m.route === creep.memory.route && (m.room === creep.room.name || !m.room)) ||
+    if (!creep.memory.route) return null;    
+    return MULES.find((m) => m.route === creep.memory.route 
+            && (m.room === creep.room.name || !m.room)) ||
            MULES.find((m) => m.route === creep.memory.route);
 }
 
 function goDeliver(creep) {
     const routeConfig = getMuleRoute(creep);
-    const targetDef = routeConfig ? routeConfig.target : creep.memory.target;
-    const target = getTargetObject(creep, targetDef);
+    const target = getTargetObject(creep, routeConfig);
     
     if (creep.memory.goToSpawn === true) 
     {

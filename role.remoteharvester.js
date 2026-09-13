@@ -8,17 +8,15 @@ const idle = require('manager.idle');
 // Configurable remote harvesting routes: target remote room, home base room, source ID, and creep quota
 const REMOTE_HARVESTERS = [
     {
-        route: 'remoteHarvester_W2N1',
+        route: 'W2N1',
         room: 'W2N1',
         homeRoom: 'W2N2',
-        source: '491f0774ad7dec8',
         count: 20
     },
     {
-        route: 'remoteHarvester_W3N1',
+        route: 'W3N1',
         room: 'W3N1',
         homeRoom: 'W2N2',
-        source: '2b530774411ba3e',
         count: 20
     }
 ];
@@ -111,9 +109,8 @@ function goDeliver(creep) {
 function goHarvest(creep) {
     const routeConfig = getRemoteRoute(creep);
     const targetRoom = (routeConfig && routeConfig.room) || creep.memory.room;
-    const sourceId = (routeConfig && routeConfig.source) || creep.memory.source;
 
-    // 1. Move to target remote room if not already there
+    // Move to target remote room if not already there
     if (targetRoom && creep.room.name !== targetRoom) {
         creep.moveTo(new RoomPosition(25, 25, targetRoom), {
             reusePath: 15,
@@ -122,17 +119,8 @@ function goHarvest(creep) {
         return;
     }
 
-    // 2. Resolve source object by ID if configured
-    let source = null;
-    if (sourceId) {
-        source = typeof sourceId === 'string' ? Game.getObjectById(sourceId.trim()) : sourceId;
-    }
-
-    // 3. Fallback: Find active source in current remote room
-    if (!source) {
-        source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE) || creep.pos.findClosestByRange(FIND_SOURCES);
-    }
-
+    // Find active source in current remote room
+    let source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE) || creep.pos.findClosestByRange(FIND_SOURCES);
     if (source) {
         if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
             creep.moveTo(source, {

@@ -352,8 +352,13 @@ function spawnHarvester(spawn, route) {
             return;
         body = [WORK, WORK, WORK, WORK, CARRY, MOVE]
     }
+    else{
+        if (spawn.room.energyAvailable < 600)
+            return;
+        body = [WORK, WORK, WORK, WORK, WORK, CARRY, MOVE]
+    }
     
-    const name = 'Harvester' + route.route + Game.time;
+    const name = route.route + Game.time;
     const memory = { role: 'harvester' };
     if (route) {
         memory.route = route.route;
@@ -387,11 +392,21 @@ function spawnRemoteHarvester(spawn, route) {
             return;
         body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE]
     }
-    else if (level < 600)
+    else
     {
+        if (spawn.room.energyAvailable < 400)
+            return;
+
+        let energyThere = spawn.room.energyAvailable - 200;
+        body = [WORK, WORK];
+        while (energyThere > 0)
+        {
+            body.push(CARRY);
+            body.push(MOVE);
+            energyThere -= 100;
+        }
         if (spawn.room.energyAvailable < 500)
             return;
-        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]
     }
     const name = 'RemoteHarvester' + Game.time;
     const memory = { role: 'remoteharvester' };
