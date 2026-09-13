@@ -8,6 +8,7 @@ const roleBuilder = require('role.builder');
 const roleMule = require('role.mule');
 const roleDefender = require('role.defender');
 const roleSpawnMuler = require('role.spawnmule');
+const roleJanitor = require('role.janitor');
 const managerSpawner = require('manager.spawner');
 const managerStats = require('manager.stats');
 const managerTower = require('manager.tower');
@@ -53,6 +54,9 @@ module.exports.loop = function () {
                 break;
             case 'mule':
                 roleMule.run(creep);
+                break;
+            case 'janitor':
+                roleJanitor.run(creep);
                 break;
             case 'defenderMelee':
             case 'defenderRanged':

@@ -8,26 +8,19 @@
 const idle = require('manager.idle');
 const MULES = [
     {
-        route: 'updaterRoute',
-        room: 'W9N9',
-        source: '6aa55d271698000037e631d7',
-        target: '6aa57a611964a00035340301',
-        count: 5 
-    },
-    {
         route: 'harvesterRoute1',
-        room: 'W9N9',
-        source: '6aa5a02e1964a00035340668',
-        target: '6aa55d271698000037e631d7',
-        count: 2
+        room: 'W2N2',
+        source: '6aa6607b12550b003faf31c5',
+        target: '6aa66e011964a000353417e0',
+        count: 3 
     },
     {
         route: 'harvesterRoute2',
-        room: 'W9N9',
-        source: '6aa5a3ef104aaf003c9e62a6',
-        target: '6aa55d271698000037e631d7',
-        count: 2
-    }
+        room: 'W2N2',
+        source: '6aa6638612550b003faf31ed',
+        target: '6aa66e011964a000353417e0',
+        count: 3
+    },
 ];
 
 const roleBMule = {
@@ -101,20 +94,46 @@ function goDeliver(creep) {
     const routeConfig = getMuleRoute(creep);
     const targetDef = routeConfig ? routeConfig.target : creep.memory.target;
     const target = getTargetObject(creep, targetDef);
-
-    if (target) {
+    
+    if (creep.memory.goToSpawn === true) 
+    {
+        const spawnTarget = creep.pos.findClosestByRange(FIND_STRUCTURES, {
+            filter: (s) =>
+                (s.structureType === STRUCTURE_SPAWN ||
+                    s.structureType === STRUCTURE_EXTENSION) &&
+                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+        if (spawnTarget) {
+            const spawnDropResult = creep.transfer(spawnTarget, RESOURCE_ENERGY)
+            if (spawnDropResult === ERR_NOT_IN_RANGE) {
+                creep.moveTo(spawnTarget);
+            } else if (spawnDropResult === ERR_FULL) {
+                creep.drop(RESOURCE_ENERGY);
+                creep.memory.goToSpawn = false;
+            } 
+            else
+            {
+                creep.memory.goToSpawn = false;
+            }
+        }
+        return;
+    }
+    if (target) 
+    {       
         let dropOfReslult = creep.transfer(target, RESOURCE_ENERGY);
-        if (dropOfReslult === ERR_NOT_IN_RANGE) {
+        if ( dropOfReslult === ERR_NOT_IN_RANGE ) {
             creep.moveTo(target, {
                 reusePath: 15,
                 visualizePathStyle: { stroke: '#ffffff' }
             });
         }
         else if (dropOfReslult === ERR_FULL) {
-                creep.say('⚡ FULL');
-                creep.drop(RESOURCE_ENERGY);
-        }        
-    } else {
+            creep.say('⚡ FULL');
+            creep.memory.goToSpawn = true;
+        }
+    } 
+    else 
+    {
         idle.park(creep);
     }
 }

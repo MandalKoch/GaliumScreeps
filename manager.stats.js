@@ -197,9 +197,11 @@ const managerStats = {
                 const progress = spawn.spawning.needTime - spawn.spawning.remainingTime;
                 return `${spawn.name}: Spawning ${role} (${progress}/${spawn.spawning.needTime}t)`;
             } else {
+
+                const savingFor = spawn.memory.currentJob;
                 const energy = spawn.store ? spawn.store.getUsedCapacity(RESOURCE_ENERGY) : 0;
                 const cap = spawn.store ? spawn.store.getCapacity(RESOURCE_ENERGY) : 300;
-                return `${spawn.name}: Idle (${energy}/${cap}e)`;
+                return `${spawn.name}: saving for ${savingFor} (${energy}/${cap}e)`;
             }
         }).join(' | ');
     },

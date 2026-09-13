@@ -6,6 +6,7 @@ const roleHarvester = require('role.harvester');
 const roleRemoteHarvester = require('role.remoteharvester');
 const roleMule = require('role.mule');
 const roleSpawnMule = require("./role.spawnmule");
+const roleJanitor = require('./role.janitor');
 
 const managerSpawner = {
     
@@ -17,7 +18,6 @@ const managerSpawner = {
         if (spawn.room.energyAvailable < 200) {
             return;
         }
-
         // Check for hostiles in room to determine defense alert status
         const hostiles = spawn.room.find(FIND_HOSTILE_CREEPS);
         const hasHostiles = hostiles.length > 0;
@@ -27,7 +27,9 @@ const managerSpawner = {
         const minDefenderRanged = hasHostiles ? 5 : 2;
         const minDefenderHealer = hasHostiles ? 2 : 1;
         const minUpdater = 5;
-        const minBuilder = spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length > 0 ? 2 : 1;
+        const minBuilder = spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length > 0 ? 8 : 1;
+        const janitorConfig = roleJanitor.config ? roleJanitor.config.find(j => (j.homeRoom || j.room) === spawn.room.name) : null;
+        const minJanitor = janitorConfig && janitorConfig.count !== undefined ? janitorConfig.count : 1;
         
         const activeDefenderMelee = spawn.room.find(FIND_MY_CREEPS, {
             filter: (creep) => creep.memory.role === 'defenderMelee'
@@ -39,14 +41,16 @@ const managerSpawner = {
             filter: (creep) => creep.memory.role === 'defenderHealer' || creep.memory.role === 'healer'
         }).length;
         const activeHarvester = Object.values(Game.creeps).filter((creep) =>
-            creep.memory.role === 'harvester' &&
-            ((creep.memory.homeRoom || creep.memory.room) === spawn.room.name || creep.room.name === spawn.room.name)
+            creep.memory.role === 'harvester' 
         ).length;
         const activeUpdater = spawn.room.find(FIND_MY_CREEPS, {
             filter: (creep) => creep.memory.role === 'updater'
         }).length;
         const activeBuilder = spawn.room.find(FIND_MY_CREEPS, {
             filter: (creep) => creep.memory.role === 'builder'
+        }).length;
+        const activeJanitor = spawn.room.find(FIND_MY_CREEPS, {
+            filter: (creep) => creep.memory.role === 'janitor'
         }).length;
         
         // Find under-allocated harvester routes for this room / remote rooms
@@ -89,109 +93,187 @@ const managerSpawner = {
                 neededRemoteHarvesterRoute = { route, current: activeCount };
                 break;
             }
-        }     
-        
-        // 1. Emergency recovery if harvesters are critically low
+        }
+
         spawnSpawnMuler(spawn);
+        // 1. Emergency recovery if harvesters are critically low
         if (activeHarvester <= 1) {
             const emergencyRoute = neededHarvesterRoute ? neededHarvesterRoute.route : null;
             spawnEmergencyHarvester(spawn, emergencyRoute);
-            console.log(`Spawning emergency harvester ${activeHarvester}/${minHarvester}`);
+            if( spawn.memory.currentJob === 'emergency harvester' )
+                return;
+            spawn.memory.currentJob = 'emergency harvester';
+            console.log(`Spawning emergency harvester ${activeHarvester}`);
         }
         // 2. Urgent wartime defense: Prioritize military defenders when hostiles are present
         else if (hasHostiles && activeDefenderMelee < minDefenderMelee) {
             if (spawn.room.energyAvailable < 280) {
                 return;
             }
-                console.log(`🚨 [ALERT] Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
             spawnDefenderMelee(spawn);
+            if( spawn.memory.currentJob === 'melee defender' )
+                return;
+            spawn.memory.currentJob = 'melee defender';
+            console.log(`🚨 [ALERT] Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
         }
         else if (hasHostiles && activeDefenderHealer < minDefenderHealer) {
             if (spawn.room.energyAvailable < 300) {
                 return;
             }
-            console.log(`🚨 [ALERT] Spawning combat healer ${activeDefenderHealer}/${minDefenderHealer}`);
             spawnDefenderHealer(spawn);
+            if( spawn.memory.currentJob === 'combat healer' )
+                return;
+            spawn.memory.currentJob = 'combat healer';
+            console.log(`🚨 [ALERT] Spawning combat healer ${activeDefenderHealer}/${minDefenderHealer}`);
         }
         else if (hasHostiles && activeDefenderRanged < minDefenderRanged) {
             if (spawn.room.energyAvailable < 260) {
                 return;
             }
-            console.log(`🚨 [ALERT] Spawning ranged defender ${activeDefenderRanged}/${minDefenderRanged}`);
             spawnDefenderRanged(spawn);
+            if( spawn.memory.currentJob === 'ranged defender' )
+                return;
+            spawn.memory.currentJob = 'ranged defender';
+            console.log(`🚨 [ALERT] Spawning ranged defender ${activeDefenderRanged}/${minDefenderRanged}`);
         }
         // 3. Economy: Base harvesters & logistics
         else if (neededHarvesterRoute) {
-            if (spawn.room.energyAvailable < 500) {
+            if (spawn.room.energyAvailable < 200) {
                 return;
             }
-            console.log(`Spawning harvester ${neededHarvesterRoute.current}/${neededHarvesterRoute.route.count} (${neededHarvesterRoute.route.route})`);
             spawnHarvester(spawn, neededHarvesterRoute.route);
-        }
-        else if (harvesterRoutes.length === 0 && activeHarvester < minHarvester) {
-            if (spawn.room.energyAvailable < 500) {
+            if( spawn.memory.currentJob === 'harvester' )
                 return;
-            }
-            console.log(`Spawning harvester ${activeHarvester}/${minHarvester}`);
-            spawnHarvester(spawn);
-        }
+            spawn.memory.currentJob = 'harvester';
+            console.log(`Spawning harvester ${neededHarvesterRoute.current}/${neededHarvesterRoute.route.count} (${neededHarvesterRoute.route.route})`);
+        }       
         else if (neededMuleRoute) {
             if (spawn.room.energyAvailable < 200) {
                 return;
             }
-            console.log(`Spawning mule ${neededMuleRoute.current}/${neededMuleRoute.route.count} (${neededMuleRoute.route.route})`);
             spawnMule(spawn, neededMuleRoute.route);
+            if( spawn.memory.currentJob === 'mule' )
+                return;
+            spawn.memory.currentJob = 'mule';
+            console.log(`Spawning mule ${neededMuleRoute.current}/${neededMuleRoute.route.count} (${neededMuleRoute.route.route})`);
         }
         // 4. Room progression: Updaters & Builders
         else if (activeUpdater < minUpdater) {
-            if (spawn.room.energyAvailable < 400) {
+            if (spawn.room.energyAvailable < 200) {
                 return;
             }
-            console.log(`Spawning updater ${activeUpdater}/${minUpdater}`);            
             spawnUpdater(spawn);
+            if( spawn.memory.currentJob === 'updater' )
+                return;
+            spawn.memory.currentJob = 'updater';
+            console.log(`Spawning updater ${activeUpdater}/${minUpdater}`);            
         }
         else if (activeBuilder < minBuilder) {
-            if (spawn.room.energyAvailable < 400) {
+            if (spawn.room.energyAvailable < 200) {
                 return;
             }
-            console.log(`Spawning builder ${activeBuilder}/${minBuilder}`);
             spawnBuilder(spawn);
+            if( spawn.memory.currentJob === 'builder' )
+                return;
+            spawn.memory.currentJob = 'builder';
+            console.log(`Spawning builder ${activeBuilder}/${minBuilder}`);
+        }
+        else if (activeJanitor < minJanitor) {
+            if (spawn.room.energyAvailable < 300) {
+                return;
+            }
+            spawnJanitor(spawn);
+            if( spawn.memory.currentJob === 'janitor' )
+                return;
+            spawn.memory.currentJob = 'janitor';
+            console.log(`Spawning janitor ${activeJanitor}/${minJanitor}`);
         }
         // 5. Peacetime standing army (2 melee, 2 ranged, 1 healer)
         else if (activeDefenderMelee < minDefenderMelee) {
             if (spawn.room.energyAvailable < 280) {
                 return;
             }
-            console.log(`Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
             spawnDefenderMelee(spawn);
+            if( spawn.memory.currentJob === 'melee defender' )
+                return;
+            spawn.memory.currentJob = 'melee defender';
+            console.log(`Spawning melee defender ${activeDefenderMelee}/${minDefenderMelee}`);
         }
         else if (activeDefenderRanged < minDefenderRanged) {
-            if (spawn.room.energyAvailable < 260) {
+            if (spawn.room.energyAvailable < 200) {
                 return;
             }
-            console.log(`Spawning ranged defender ${activeDefenderRanged}/${minDefenderRanged}`);
             spawnDefenderRanged(spawn);
+            if( spawn.memory.currentJob === 'ranged defender ' )
+                return;
+            spawn.memory.currentJob = 'ranged defender';
+            console.log(`Spawning ranged defender ${activeDefenderRanged}/${minDefenderRanged}`);
         }
         else if (activeDefenderHealer < minDefenderHealer) {
-            if (spawn.room.energyAvailable < 300) {
+            if (spawn.room.energyAvailable < 400) {
                 return;
             }
-            console.log(`Spawning combat healer ${activeDefenderHealer}/${minDefenderHealer}`);
             spawnDefenderHealer(spawn);
+            if( spawn.memory.currentJob === 'combat healer' )
+                return;
+            spawn.memory.currentJob = 'combat healer';
+            console.log(`Spawning combat healer ${activeDefenderHealer}/${minDefenderHealer}`);
         }
         else if (neededRemoteHarvesterRoute) {
-            if (spawn.room.energyAvailable < 500) {
+            if (spawn.room.energyAvailable < 200) {
                 return;
             }
-            console.log(`Spawning remote harvester ${neededRemoteHarvesterRoute.current}/${neededRemoteHarvesterRoute.route.count} (${neededRemoteHarvesterRoute.route.route})`);
             spawnRemoteHarvester(spawn, neededRemoteHarvesterRoute.route);
+            if( spawn.memory.currentJob === 'remote harvester' )
+                return;
+            spawn.memory.currentJob = 'remote harvester';
+            console.log(`Spawning remote harvester ${neededRemoteHarvesterRoute.current}/${neededRemoteHarvesterRoute.route.count} (${neededRemoteHarvesterRoute.route.route})`);
+        }
+        else{
+            if( spawn.memory.currentJob === 'idle' )
+                return;
+            spawn.memory.currentJob = 'idle';
+            console.log(`Spawning idle`);
+            return;
         }
     }
 };
 
 function spawnSpawnMuler(spawn){
-    return;
-    const body = [CARRY, MOVE];
+    let body = null;
+    let level = spawn.room.energyCapacityAvailable;
+    const activeSpawnMuler = spawn.room.find(FIND_MY_CREEPS, {
+        filter: (creep) => creep.memory.role === 'spawmMuler'
+    }).length;
+    
+    if (activeSpawnMuler < 1)
+    {
+        body = [CARRY, MOVE]
+    }   
+    else if (level >= 300)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
+    }
+    else if (level >= 400)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
+    }
+    else if (level >= 500)
+    {
+        if (spawn.room.energyAvailable < 500)
+            return;
+        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
+    }
+    else
+    {
+        if (spawn.room.energyAvailable < 100)
+            return;
+        body = [CARRY, MOVE]
+    }
     const spawnMule = roleSpawnMule.config ? roleSpawnMule.config.filter(r =>
         r.room === spawn.room.name) : [];
 
@@ -201,7 +283,7 @@ function spawnSpawnMuler(spawn){
                 creep.memory.role === 'spawmMuler' && creep.memory.route === mule.route
         })
         if (activeSpawnMuler.length === 0) {
-            const name = 'SpawmMuler' + Game.time;
+            const name = 'SpawmMuler' + mule.route + Game.time;
             spawn.spawnCreep(body, name, { memory: { 
                 role: 'spawmMuler',
                 route: mule.route
@@ -244,8 +326,34 @@ function spawnEmergencyHarvester(spawn, route) {
 }
 
 function spawnHarvester(spawn, route) {
-    const body = [WORK, WORK, WORK, WORK, CARRY, MOVE]; // 500 energy
-    const name = 'Harvester' + Game.time;
+    let level = spawn.room.energyCapacityAvailable;
+    let body = null;
+    if (level < 300)
+    {
+        if (spawn.room.energyAvailable < 200)
+            return;
+        body = [WORK, CARRY, MOVE];
+    }
+    else if (level < 400)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [WORK, WORK, CARRY, MOVE]
+    }
+    else if (level < 500)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [WORK, WORK, WORK, CARRY, MOVE]
+    }
+    else if (level < 600)
+    {
+        if (spawn.room.energyAvailable < 500)
+            return;
+        body = [WORK, WORK, WORK, WORK, CARRY, MOVE]
+    }
+    
+    const name = 'Harvester' + route.route + Game.time;
     const memory = { role: 'harvester' };
     if (route) {
         memory.route = route.route;
@@ -259,7 +367,32 @@ function spawnHarvester(spawn, route) {
 }
 
 function spawnRemoteHarvester(spawn, route) {
-    const body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]; // 500 energy (2 WORK, 2 CARRY, 4 MOVE for 1:1 speed)
+    let level = spawn.room.energyCapacityAvailable;
+    let body = null;
+    if (level < 300)
+    {
+        if (spawn.room.energyAvailable < 200)
+            return;
+        body = [WORK, CARRY, MOVE];
+    }
+    else if (level < 400)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [WORK, WORK, CARRY, MOVE]
+    }
+    else if (level < 500)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE]
+    }
+    else if (level < 600)
+    {
+        if (spawn.room.energyAvailable < 500)
+            return;
+        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]
+    }
     const name = 'RemoteHarvester' + Game.time;
     const memory = { role: 'remoteharvester' };
     if (route) {
@@ -272,19 +405,94 @@ function spawnRemoteHarvester(spawn, route) {
 }
 
 function spawnUpdater(spawn){
-    const body = [WORK, WORK, WORK, CARRY, MOVE];
+    let level = spawn.room.energyCapacityAvailable;
+    let body = null;
+    if (level >= 300)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [WORK, CARRY, CARRY, MOVE, MOVE]
+    }
+    else if (level >= 400)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE]
+    }
+    else if (level >= 500)
+    {
+        if (spawn.room.energyAvailable < 500)
+            return; 
+        body = [WORK, WORK, CARRY, CARRY, MOVE, CARRY, MOVE, MOVE]
+    }
+    else
+    {
+        if (spawn.room.energyAvailable < 200)
+            return;
+        body = [WORK, CARRY, MOVE];
+    }
     const name = 'Updater' + Game.time;
     spawn.spawnCreep(body, name, { memory: { role: 'updater' } });
 }
 
 function spawnBuilder(spawn){
-    const body = [WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+    let level = spawn.room.energyCapacityAvailable;
+    let body = null;
+    if (level >= 300)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [WORK, CARRY, CARRY,  MOVE, MOVE];
+    }
+    else if (level >= 400)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [WORK, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE];
+    }
+    else if (level >= 500)
+    {
+        if (spawn.room.energyAvailable < 500)
+            return;
+        body = [WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE];
+    }
+    else
+    {
+        if (spawn.room.energyAvailable < 200)
+            return;
+        body = [WORK, CARRY, MOVE];
+    }
     const name = 'Builder' + Game.time;
     spawn.spawnCreep(body, name, { memory: { role: 'builder' } });
 }
 
 function spawnMule(spawn, route){
-    const body = [CARRY, CARRY, MOVE, MOVE];
+    let body = null;
+    let level = spawn.room.energyCapacityAvailable;
+    if (level >= 300)
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
+    }
+    else if (level >= 400)
+    {
+        if (spawn.room.energyAvailable < 400)
+            return;
+        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
+    }
+    else if (level >= 500)
+    {
+        if (spawn.room.energyAvailable < 500)
+            return;
+        body = [CARRY, MOVE, CARRY, MOVE, CARRY, MOVE, CARRY, MOVE]
+    }
+    else
+    {
+        if (spawn.room.energyAvailable < 100)
+            return;
+        body = [CARRY, MOVE]
+    }
     const name = 'Mule' + Game.time;
     spawn.spawnCreep(body, name, {
         memory: {
@@ -295,6 +503,25 @@ function spawnMule(spawn, route){
             target: route.target
         }
     });
+}
+
+function spawnJanitor(spawn) {
+    let level = spawn.room.energyCapacityAvailable;
+    let body = null;
+    if (level < 300)
+    {
+        if (spawn.room.energyAvailable < 200)
+            return;
+        body = [WORK, CARRY, MOVE];
+    }
+    else
+    {
+        if (spawn.room.energyAvailable < 300)
+            return;
+        body = [WORK, CARRY, CARRY, MOVE, MOVE]
+    }
+    const name = 'Janitor' + Game.time;
+    spawn.spawnCreep(body, name, { memory: { role: 'janitor' } });
 }
 
 module.exports = managerSpawner;

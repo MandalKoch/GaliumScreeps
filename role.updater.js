@@ -1,15 +1,15 @@
 /**
- * Harvester Role
+ * Updater Role
  * Collects energy and delivers it to Spawns, Extensions, and Towers.
  */
 require('helper.source');
 
-const roleHarvester = {
+const roleUpdater = {
     /** @param {Creep} creep **/
     run: function (creep) {
         if (creep.memory.delivering && creep.store[RESOURCE_ENERGY] === 0) {
             creep.memory.delivering = false;
-            creep.say('🔄 harvest');
+            creep.say('🔄 gathering');
         }
         if (!creep.memory.delivering && creep.store.getFreeCapacity() === 0) {
             creep.memory.delivering = true;
@@ -44,18 +44,18 @@ function goGather(creep) {
             });
         }
     } 
-    //else {
-    //   // Find active source
-    //   const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-    //   if (source) {
-    //       if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-    //           creep.moveTo(source, {
-    //               reusePath: 15,
-    //               visualizePathStyle: {stroke: '#ffaa00'}
-    //           });
-    //       }
-    //   }
-    //}
+    else {
+       // Find active source
+       const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+       if (source) {
+           if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+               creep.moveTo(source, {
+                   reusePath: 15,
+                   visualizePathStyle: {stroke: '#ffaa00'}
+               });
+           }
+       }
+    }
 }
 
-module.exports = roleHarvester;
+module.exports = roleUpdater;

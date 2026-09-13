@@ -3,6 +3,7 @@
  * Constructs buildings, and when idle plans, builds, and repairs roads.
  */
 const idle = require('./manager.idle');
+const roleJanitor = require('role.janitor');
 require('helper.source');
 
 // Define road routes to maintain and build when idle
@@ -114,8 +115,8 @@ function goDeliver(creep) {
         return;
     }
 
-    // 4. If nothing to build or repair, park
-    idle.park(creep);
+    // 4. If nothing to do fall back to janitor
+    roleJanitor.run(creep);
 }
 
 function goGather(creep) {
@@ -131,16 +132,16 @@ function goGather(creep) {
         return;
     }
 
-    // 2. Fallback: harvest from active source
-   // const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
-   // if (source) {
-   //     if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-   //         creep.moveTo(source, {
-   //             reusePath: 15,
-   //             visualizePathStyle: { stroke: '#ffaa00' }
-   //         });
-   //     }
-   // }
+   // 2. Fallback: harvest from active source
+   const source = creep.pos.findClosestByPath(FIND_SOURCES_ACTIVE);
+   if (source) {
+       if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
+           creep.moveTo(source, {
+               reusePath: 15,
+               visualizePathStyle: { stroke: '#ffaa00' }
+           });
+       }
+   }
 }
 
 module.exports = roleBuilder;
